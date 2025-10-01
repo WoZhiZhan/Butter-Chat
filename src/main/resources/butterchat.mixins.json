@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.wzz.butterchat.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "butterchat.refmap.json",
+  "mixins": [
+  ],
+  "client": [
+    "ChatComponentMixin",
+    "ChatScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}
