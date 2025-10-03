@@ -2,9 +2,11 @@ package com.wzz.butterchat.mixin;
 
 import net.minecraft.client.GuiMessage;
 import net.minecraft.client.GuiMessageTag;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MessageSignature;
 import net.minecraft.util.FormattedCharSequence;
@@ -43,9 +45,6 @@ public abstract class ChatComponentMixin {
     @Unique
     private int previousTrimmedSize = 0;
 
-    /**
-     * 在消息添加前记录当前大小
-     */
     @Inject(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;ILnet/minecraft/client/GuiMessageTag;Z)V",
             at = @At("HEAD"))
     private void beforeMessageAdded(Component message, MessageSignature signature, int ticks, GuiMessageTag tag, boolean refresh, CallbackInfo ci) {
@@ -54,9 +53,6 @@ public abstract class ChatComponentMixin {
         }
     }
 
-    /**
-     * 只为本次新添加的行设置动画
-     */
     @Inject(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;ILnet/minecraft/client/GuiMessageTag;Z)V",
             at = @At("TAIL"))
     private void afterMessageAdded(Component message, MessageSignature signature, int ticks, GuiMessageTag tag, boolean refresh, CallbackInfo ci) {
@@ -76,9 +72,6 @@ public abstract class ChatComponentMixin {
         this.currentTickCount = tickCount;
     }
 
-    /**
-     * 重定向 drawString 应用滑入动画
-     */
     @Redirect(method = "render",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/GuiGraphics;drawString(Lnet/minecraft/client/gui/Font;Lnet/minecraft/util/FormattedCharSequence;III)I"))
@@ -119,25 +112,28 @@ public abstract class ChatComponentMixin {
                 }
             }
 
-            int messageAge = currentTickCount - currentLine.addedTime();
-            if (messageAge > 160 && messageAge <= 200) {
-                float fadeProgress = (float) (messageAge - 160) / 30.0f;
-                float easedFade = easeInCubic(fadeProgress);
+            boolean isChatOpen = Minecraft.getInstance().screen instanceof ChatScreen;
+            if (!isChatOpen) {
+                int messageAge = currentTickCount - currentLine.addedTime();
+                if (messageAge > 160 && messageAge <= 200) {
+                    float fadeProgress = (float) (messageAge - 160) / 40.0f;
+                    float easedFade = easeInCubic(fadeProgress);
 
-                float xOffset = -easedFade * 120.0f;
+                    float xOffset = -easedFade * 120.0f;
 
-                guiGraphics.pose().pushPose();
-                guiGraphics.pose().translate(xOffset, 0, 0);
+                    guiGraphics.pose().pushPose();
+                    guiGraphics.pose().translate(xOffset, 0, 0);
 
-                int alpha = (color >> 24) & 0xFF;
-                int rgb = color & 0xFFFFFF;
-                int newAlpha = (int) (alpha * (1.0f - fadeProgress));
-                color = (newAlpha << 24) | rgb;
+                    int alpha = (color >> 24) & 0xFF;
+                    int rgb = color & 0xFFFFFF;
+                    int newAlpha = (int) (alpha * (1.0f - fadeProgress));
+                    color = (newAlpha << 24) | rgb;
 
-                int result = guiGraphics.drawString(font, text, x, y, color);
-                guiGraphics.pose().popPose();
+                    int result = guiGraphics.drawString(font, text, x, y, color);
+                    guiGraphics.pose().popPose();
 
-                return result;
+                    return result;
+                }
             }
         }
 
