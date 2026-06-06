@@ -3,13 +3,10 @@ package com.wzz.butterchat.mixin;
 import net.minecraft.client.GuiMessage;
 import net.minecraft.client.GuiMessageTag;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ChatComponent;
-import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MessageSignature;
-import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -107,6 +104,10 @@ public abstract class ChatComponentMixin {
             return;
         }
 
+        if (!this.isChatFocused() && this.chatScrollbarPos != 0) {
+            this.chatScrollbarPos = 0;
+        }
+
         int linesPerPage = this.getLinesPerPage();
         int totalLines = this.trimmedMessages.size();
 
@@ -149,25 +150,24 @@ public abstract class ChatComponentMixin {
                 continue;
             }
 
-            // 计算透明度
+            // 计算基础透明度（仅由时间因子决定）
             double timeFactor = isChatOpen ? 1.0 : getTimeFactor(messageAge);
             int textAlpha = (int) (255.0 * timeFactor * chatOpacity);
             int bgAlpha = (int) (255.0 * timeFactor * bgOpacity);
 
             renderedLines++;
 
-            if (textAlpha <= 3) continue;
+            if (textAlpha <= 2) continue; // 降低阈值，减少闪烁
 
             int yPos = yBase - i * lineHeight;
             int textY = yPos + lineOffset;
 
-            // 计算滑动动画偏移
             float xOffset = 0.0f;
             float fadeMultiplier = 1.0f;
 
             Long animStartTime = lineAnimationTimes.get(line);
 
-            // 滑入动画
+            // 滑入动画（包含淡入）
             if (animStartTime != null) {
                 long currentTime = System.currentTimeMillis();
                 long elapsed = currentTime - animStartTime;
@@ -175,30 +175,29 @@ public abstract class ChatComponentMixin {
                     float progress = (float) elapsed / MESSAGE_SLIDE_IN_DURATION;
                     float easedProgress = easeOutCubic(progress);
                     xOffset = -(1.0f - easedProgress) * 100.0f;
-                    fadeMultiplier = easedProgress;
+                    fadeMultiplier = easedProgress; // 滑入时才用淡入
                 } else {
                     lineAnimationTimes.remove(line);
                 }
             }
 
-            // 滑出动画
+            // 滑出动画：只做水平位移，不再额外修改透明度，避免双重淡出闪烁
             if (!isChatOpen && messageAge > 160 && messageAge <= 200) {
                 float fadeProgress = (float) (messageAge - 160) / 40.0f;
                 float easedFade = easeInCubic(fadeProgress);
                 xOffset = -easedFade * 120.0f;
-                fadeMultiplier = 1.0f - fadeProgress;
+                // 不再设置 fadeMultiplier
             }
 
-            // 应用淡入淡出到透明度
+            // 只应用淡入的透明度系数
             textAlpha = (int) (textAlpha * fadeMultiplier);
             bgAlpha = (int) (bgAlpha * fadeMultiplier);
 
-            if (textAlpha <= 3) continue;
+            if (textAlpha <= 2) continue;
 
             // 绘制背景
             guiGraphics.pose().pushPose();
             guiGraphics.pose().translate(xOffset, 0.0F, 0.0F);
-            guiGraphics.pose().translate(0.0F, 0.0F, 50.0F);
 
             guiGraphics.fill(-4, yPos - lineHeight, width + 4 + 4, yPos, bgAlpha << 24);
 
@@ -217,7 +216,6 @@ public abstract class ChatComponentMixin {
             }
 
             // 绘制文本
-            guiGraphics.pose().translate(0.0F, 0.0F, 50.0F);
             int color = 16777215 + (textAlpha << 24);
             guiGraphics.drawString(this.minecraft.font, line.content(), 0, textY, color);
 

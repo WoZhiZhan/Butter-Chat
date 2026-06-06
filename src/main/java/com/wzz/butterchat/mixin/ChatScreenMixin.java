@@ -34,9 +34,6 @@ public abstract class ChatScreenMixin extends Screen {
         super(title);
     }
 
-    /**
-     * 在初始化时重置动画状态
-     */
     @Inject(method = "init", at = @At("TAIL"))
     private void onInit(CallbackInfo ci) {
         animationStartTime = System.currentTimeMillis();
@@ -44,9 +41,6 @@ public abstract class ChatScreenMixin extends Screen {
         shouldActuallyClose = false;
     }
 
-    /**
-     * 在渲染时应用动画效果
-     */
     @Inject(method = "render", at = @At("HEAD"))
     private void onRenderStart(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         long currentTime = System.currentTimeMillis();
@@ -74,7 +68,7 @@ public abstract class ChatScreenMixin extends Screen {
         poseStack.pushPose();
 
         float scale = 0.9f + (easedProgress * 0.1f);
-        float yOffset = (1.0f - easedProgress) * 30.0f; // 从下方滑入/滑出
+        float yOffset = (1.0f - easedProgress) * 30.0f;
 
         float centerX = this.width / 2.0f;
         float bottomY = this.height;
@@ -85,9 +79,6 @@ public abstract class ChatScreenMixin extends Screen {
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, easedProgress);
     }
 
-    /**
-     * 在渲染结束时恢复状态
-     */
     @Inject(method = "render", at = @At("RETURN"))
     private void onRenderEnd(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         var poseStack = guiGraphics.pose();
@@ -95,9 +86,6 @@ public abstract class ChatScreenMixin extends Screen {
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
-    /**
-     * 拦截关闭事件，触发淡出动画
-     */
     @Inject(method = "removed", at = @At("HEAD"), cancellable = true)
     private void onRemoved(CallbackInfo ci) {
         if (!isClosing && !shouldActuallyClose) {
@@ -107,9 +95,6 @@ public abstract class ChatScreenMixin extends Screen {
         }
     }
 
-    /**
-     * 淡入：回弹缓动（带弹性）
-     */
     @Unique
     private float easeOutBack(float x) {
         float c1 = 1.70158f;
@@ -117,9 +102,6 @@ public abstract class ChatScreenMixin extends Screen {
         return (float) (1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2));
     }
 
-    /**
-     * 淡出：缓入效果
-     */
     @Unique
     private float easeInBack(float x) {
         float c1 = 1.70158f;
